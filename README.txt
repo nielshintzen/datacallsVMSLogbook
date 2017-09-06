@@ -6,3 +6,4 @@
 6) Automatic initialisation should start
 7) If you want to add / delete code use commit + push
 8) If you want to onl download, use the pull command 
+9)test
