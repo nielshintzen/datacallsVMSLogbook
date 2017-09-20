@@ -1,0 +1,37 @@
+LE_GEAR,min,max,redsk
+DRB,2,4,Muslingeskrabere
+DRC,2,4,Muslingeskrabere
+DRO,2,4,Muslingeskrabere
+BMS,2,4,Muslingeskrabere
+DRH,2,4,Muslingeskrabere
+OTB,2,4,Bundtrawl
+OTT,2,4,Bundtrawl
+PTB,2,4,Bundtrawl
+TBN,2,4,Bundtrawl
+TB,2,4,Bundtrawl
+TBS,2,4,Bundtrawl
+TBB,2,4,Bomtrawl
+OTM,2,4,Pelagisk trawl
+PTM,2,4,Pelagisk trawl
+LH,0,0.1,Liner
+LHP,0,0.1,Liner
+LL,0,0.1,Liner
+LLD,0,0.1,Liner
+LLS,0,0.1,Liner
+LX,0,0.1,Liner
+LTL,0,0.1,Liner
+FPO,2,4,Ruser og Tejner
+FYK,2,4,Ruser og Tejner
+FPN,2,4,Ruser og Tejner
+FIX,2,4,Ruser og Tejner
+GTR,0.1,4,Garn
+GNS,0.1,4,Garn
+GND,0.1,4,Garn
+GN,0.1,4,Garn
+GTN,0.1,4,Garn
+SDN,0.1,4,Snurrevod
+SSC,0.1,4,Snurrevod
+PS,0.1,4,Snurpenot
+UNK,0,4,Ukendt
+MIS,0,4,Ukendt
+TBC,2,4,Bomtrawl
