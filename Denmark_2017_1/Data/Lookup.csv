@@ -1,6 +1,6 @@
 Measure,Shape,Time_Start,Time_End,Gears,Metiers,Species_kg,Species_euro,Effort
-Lønstrup Rødgrund,LonstrupRodgrund,,,All_Gears,,Total,Total,Hours
-Thyborøn stenvolde,GuleRev,,,All_Gears,,Total,Total,Hours
-"Jyske Rev, Lillefiskerbanke",StoreRev,,,All_Gears,,Total,Total,Hours
-Store Rev,JyskeRev,,,All_Gears,,Total,Total,Hours
-Gule Rev,ThyboronStenvolde,,,All_Gears,,Total,Total,Hours
+Lønstrup Rødgrund,LonstrupRodgrund,,,,,Total,Total,Hours
+Thyborøn stenvolde,GuleRev,,,,,Total,Total,Hours
+"Jyske Rev, Lillefiskerbanke",StoreRev,,,,,Total,Total,Hours
+Store Rev,JyskeRev,,,,,Total,Total,Hours
+Gule Rev,ThyboronStenvolde,,,,,Total,Total,Hours
