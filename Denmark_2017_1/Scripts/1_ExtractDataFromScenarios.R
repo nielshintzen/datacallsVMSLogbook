@@ -13,17 +13,12 @@
 
 rm(list=ls())
 library(vmstools)
-#library(sp)
 library(rgdal)
 library(data.table)
-#library(raster)
-#library(rgeos)
-#library(spatstat)
-#library(maptools)
-#library(downloader)
+
 
 #- Set the working directory to the folder where you keep your code and data
-sysPath       <-"W:/jepol/home/17-09-07_ProposedWorkflows/"
+sysPath       <-"C:/Users/jepol/Desktop/Repository/Denmark_2017_1/"
 RdataPath   <- paste0(sysPath,"Rdata/")
 dataPath    <- paste0(sysPath,"Data/")
 polygonPath <- paste0(sysPath,"shapes")
@@ -45,7 +40,7 @@ lookup <- fread(paste0(dataPath, "Lookup.csv"), blank.lines.skip=T)
 Dredge <- c("DRB", "DRO", "DRC", "BMS")
 BottomTrwl <- c("OTB", "OTT", "PTB", "TBN", "TBS")
 BeamTrwl <- "TBB"
-PelagigTrwl <- c("OTM", "PTM")
+PelagicTrwl <- c("OTM", "PTM")
 Lines <- c("LH", "LHP", "LL", "LLD", "LLS", "LX")
 Traps <- c("FPO", "FYK", "FPN")
 Nets <- c("GTR", "GNS", "GND", "GN")
@@ -53,7 +48,7 @@ AnchoredSeine <- "SDN"
 FlyShootingSeine <- "SSC"
 PurseSeine <- "PS"
 
-All_Gears <- c(Dredge, BottomTrwl, BeamTrwl, PelagigTrwl, Lines, 
+All_Gears <- c(Dredge, BottomTrwl, BeamTrwl, PelagicTrwl, Lines, 
                Traps, Nets, AnchoredSeine, FlyShootingSeine, PurseSeine)
 
 #Add all shapes to R environment, and give them names according to lookup table
@@ -82,6 +77,22 @@ for (Year in c(2012:2016)) {
   # Calculate total kg and EURO
   te[,LE_KG_TOT:=rowSums(.SD, na.rm = TRUE), .SDcols = grep("KG", names(te))]
   te[,LE_EURO_TOT:=rowSums(.SD, na.rm = TRUE), .SDcols = grep("EURO", names(te))]
+  
+  # Add column Gear Group to tacsateflalo data.table
+  te[LE_GEAR %in% Dredge, GearGroup:="Dredge"]
+  te[LE_GEAR %in% BottomTrwl, GearGroup:="BottomTrwl"]
+  te[LE_GEAR %in% BeamTrwl, GearGroup:="BeamTrwl"]
+  te[LE_GEAR %in% PelagicTrwl, GearGroup:="PelagicTrwl"]
+  te[LE_GEAR %in% Lines, GearGroup:="Lines"]
+  te[LE_GEAR %in% Traps, GearGroup:="Traps"]
+  te[LE_GEAR %in% Nets, GearGroup:="Nets"]
+  te[LE_GEAR %in% AnchoredSeine, GearGroup:="AnchoredSeine"]
+  te[LE_GEAR %in% FlyShootingSeine, GearGroup:="FlyShootingSeine"]
+  te[LE_GEAR %in% PurseSeine, GearGroup:="PurseSeine"]
+  te[is.na(GearGroup), GearGroup:="Other"]
+  
+  #Only use vms points with fishing
+  te <- te[SI_STATE==1]
   
   # make spatial points for each occurence in the tacsatEflalo file
   pings  <- SpatialPoints(te[,.(SI_LONG, SI_LATI)],proj4string=CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
@@ -129,7 +140,7 @@ for (i in 1:nrow(lookup)) {
                   [colSums(Filter(is.numeric, sub))==0])
   try(sub[,(zeroes):=NULL], silent = T)
   
-  #Aggregate data
+  #Aggregate data on gear level
   out <- sub[, c(NoVessels=uniqueN(VE_REF), Effort_hrs=sum(INTV/60), lapply(.SD, sum)),
              by=.(Gear=LE_GEAR),
              .SDcols=grepl("LE_KG|LE_EURO", names(sub))]
@@ -137,16 +148,35 @@ for (i in 1:nrow(lookup)) {
   #Add Scenario name and year to data table
   out <- data.table(Scenario=lookup$Measure[i], Year=Year, out)
   #Write to csv file
-  fwrite(out, file=paste0(RdataPath, "Measure_", lookup$Measure[i], "_", Year, ".csv"))
+  fwrite(out, file=paste0(RdataPath, "MeasurePrGear_", lookup$Measure[i], "_", Year, ".csv"))
+  
+  #Aggregate data on gear group level
+  out_group <- sub[, c(NoVessels=uniqueN(VE_REF), Effort_hrs=sum(INTV/60), lapply(.SD, sum)),
+             by=.(GearGroup=GearGroup),
+             .SDcols=grepl("LE_KG|LE_EURO", names(sub))]
+  
+  #Add Scenario name and year to data table
+  out_group <- data.table(Scenario=lookup$Measure[i], Year=Year, out_group)
+  #Write to csv file
+  fwrite(out_group, file=paste0(RdataPath, "MeasurePrGearGroup_", lookup$Measure[i], "_", Year, ".csv"))
+  
 }}
 
-# Get data from all measures and years int one data table.
-m_list <- list.files(path = RdataPath, pattern= "Measure", full.names = T)
-Measures <- rbindlist(lapply(m_list, fread), fill=T)
+# Get data from all measures / years and gear into one data table.
+m_list1 <- list.files(path = RdataPath, pattern= "MeasurePrGear_", full.names = T)
+MeasuresPrGear <- rbindlist(lapply(m_list1, fread), fill=T)
 #Set NA's to 0 (rbindlist fills out NA's when a column is not in the first file)
-Measures[is.na(Measures)] = 0
+MeasuresPrGear[is.na(MeasuresPrGear)] = 0
 #setcolorder(measures, c("Year", "Scenario", "GEAR", "LE_KG_TOT", "LE_EURO_TOT"))
-fwrite(Measures, paste0(resPath, "Measures.csv"))
+fwrite(MeasuresPrGear, paste0(resPath, "MeasuresPrGear.csv"))
+
+# Get data from all measures / years and gearGroup into one data table.
+m_list2 <- list.files(path = RdataPath, pattern= "MeasurePrGearGroup_", full.names = T)
+MeasuresPrGearGroup <- rbindlist(lapply(m_list2, fread), fill=T)
+#Set NA's to 0 (rbindlist fills out NA's when a column is not in the first file)
+MeasuresPrGearGroup[is.na(MeasuresPrGearGroup)] = 0
+#setcolorder(measures, c("Year", "Scenario", "GEAR", "LE_KG_TOT", "LE_EURO_TOT"))
+fwrite(MeasuresPrGearGroup, paste0(resPath, "MeasuresPrGearGroup.csv"))
 
 
 # Get point data from all measures and years into one data table.
