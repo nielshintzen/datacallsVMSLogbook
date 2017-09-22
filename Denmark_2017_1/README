@@ -1,0 +1,14 @@
+This subfolder contain the scripts and data to process the danish datacall for fisheries management measures in the 5 Natura 2000 sites located in the North Sea for the protection of reef structures (sandbanks H1110/ stone reefs H1170 and bubbling reefs H1180).
+We very much hope for your cooperation and will appreciate, if the requested data can be forwarded to us before 23th october 2017.
+
+To calculate the output, 3 R-Scripts are provided, but only 1 is mandatory - 1_ExtractDataFromScenarios.R. This will extract data from a combined vms and logbook data in the 5 areas and aggregate it by year, gear and gearGroup. The data extracted is the following:
+-          Number of vessels
+-          Effort (hours)
+-          Landings (total weight in KG) and landing values (Euro) by species 
+-          VMS data positions with assumed fishing activity (after speed filter is applied).
+
+The two other R-Scripts will do the following:
+0_CombineTacsatAndEflalo.R will combine cleaned vms points with cleaned logbook data. This is a new approach, so each country should decide which way they want to do it. Please also have a look at this webpage: https://github.com/nielshintzen/vmstools/wiki/Practicals1
+2_MakeOutputFiles.R will use the output from 1_ExtractDataFromScenarios.R, and make it into a more readable format. No new information is extracted in this script.
+
+If you have any questions, please do not hesitate to contact us. In case of any technical questions or comments, please contact Jeppe Olsen (jepol@aqua.dtu.dk). In case of any procedural questions, please contact Adam Billing (ADABIL@lfst.dk)
