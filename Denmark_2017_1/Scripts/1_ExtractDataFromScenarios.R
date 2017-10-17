@@ -67,16 +67,18 @@ for (Year in c(2012:2016)) {
   tacsatEflalo$CSquare  <- CSquare(tacsatEflalo$SI_LONG, tacsatEflalo$SI_LATI, 0.05)
   
   # Add relevant information to tacsatEflalo from eflalo
-  tacsatEflalo$LE_MSZ <- eflalo$LE_MSZ[match(tacsatEflalo$FT_REF,eflalo$FT_REF)]
-  tacsatEflalo$LE_MET <- eflalo$LE_MET[match(tacsatEflalo$FT_REF,eflalo$FT_REF)]
-  tacsatEflalo$VE_LEN        <- eflalo$VE_LEN[match(tacsatEflalo$FT_REF,eflalo$FT_REF)]
-  tacsatEflalo$LE_GEAR        <- eflalo$LE_GEAR[match(tacsatEflalo$FT_REF,eflalo$FT_REF)]
+  tacsatEflalo$LE_MSZ   <- eflalo$LE_MSZ[match(tacsatEflalo$FT_REF,eflalo$FT_REF)]
+  tacsatEflalo$LE_MET   <- eflalo$LE_MET[match(tacsatEflalo$FT_REF,eflalo$FT_REF)]
+  tacsatEflalo$VE_LEN   <- eflalo$VE_LEN[match(tacsatEflalo$FT_REF,eflalo$FT_REF)]
+  tacsatEflalo$LE_GEAR  <- eflalo$LE_GEAR[match(tacsatEflalo$FT_REF,eflalo$FT_REF)]
   
   # Make tacsatEflalo into a data.table for faster processing
-  te <- data.table(tacsatEflalo)
+  te <- data.table(tacsatEflalo); rm(tacsatEflalo); gc()
   # Calculate total kg and EURO
-  te[,LE_KG_TOT:=rowSums(.SD, na.rm = TRUE), .SDcols = grep("KG", names(te))]
-  te[,LE_EURO_TOT:=rowSums(.SD, na.rm = TRUE), .SDcols = grep("EURO", names(te))]
+  if(!"LE_KG_TOT" %in% colnames(te))
+    te[,LE_KG_TOT:=rowSums(.SD, na.rm = TRUE), .SDcols = grep("KG", names(te))]
+  if("!LE_EURO_TOT" %in% colnames(te))
+    te[,LE_EURO_TOT:=rowSums(.SD, na.rm = TRUE), .SDcols = grep("EURO", names(te))]
   
   # Add column Gear Group to tacsateflalo data.table
   te[LE_GEAR %in% Dredge, GearGroup:="Dredge"]
@@ -113,54 +115,55 @@ for (i in 1:nrow(lookup)) {
     #Get all data within shape
     sub <- te[!is.na(over(pings, as(shape,"SpatialPolygons")))]
   }
-  
-  #Write all points inside measure to file
-  points <- sub[,c("LE_GEAR", "SI_LATI", "SI_LONG")]
-  points <- data.table(Year, points)
-  fwrite(points, file=paste0(RdataPath, "Points_", lookup$Measure[i], "_", Year, ".csv"))
-  
-  #Get data within timeframe
-  if(!(is.na(lookup$Time_Start[i])| is.na(lookup$Time_End[i])) ){
-    sub <- sub[strptime(sub$SI_DATE, "%d/%m/%Y") >= strptime(paste(lookup$Time_Start[i], Year, sep = "-"),  "%d-%m-%Y") &
-                 strptime(sub$SI_DATE, "%d/%m/%Y") <= strptime(paste(lookup$Time_End[i], Year, sep = "-"),  "%d-%m-%Y") ]
+  if(nrow(sub)>0){
+    #Write all points inside measure to file
+    points <- sub[,c("LE_GEAR", "SI_LATI", "SI_LONG")]
+    points <- data.table(Year, points)
+    fwrite(points, file=paste0(RdataPath, "Points_", lookup$Measure[i], "_", Year, ".csv"))
+
+    #Get data within timeframe
+    if(!(is.na(lookup$Time_Start[i])| is.na(lookup$Time_End[i])) ){
+      sub <- sub[strptime(sub$SI_DATE, "%d/%m/%Y") >= strptime(paste(lookup$Time_Start[i], Year, sep = "-"),  "%d-%m-%Y") &
+                   strptime(sub$SI_DATE, "%d/%m/%Y") <= strptime(paste(lookup$Time_End[i], Year, sep = "-"),  "%d-%m-%Y") ]
+    }
+
+    # Get relevant gears - remember to define them first
+    if(!is.na(lookup$Gears[i])){
+      sub <- sub[LE_GEAR %in% get(lookup$Gears[i])]
+    }
+
+    # Get relevant Metiers - remember to define them first
+    if(!is.na(lookup$Metiers[i])){
+      sub <- sub[LE_MET %in% get(lookup$Metiers[i])]
+    }
+
+    #Remove species columns with sum zero
+    zeroes <- names(colSums(Filter(is.numeric, sub))
+                    [colSums(Filter(is.numeric, sub))==0])
+    try(sub[,(zeroes):=NULL], silent = T)
+
+    #Aggregate data on gear level
+    out <- sub[, c(NoVessels=uniqueN(VE_REF), Effort_hrs=sum(INTV/60), lapply(.SD, sum)),
+               by=.(Gear=LE_GEAR),
+               .SDcols=grepl("LE_KG|LE_EURO", names(sub))]
+
+    #Add Scenario name and year to data table
+    out <- data.table(Scenario=lookup$Measure[i], Year=Year, out)
+    #Write to csv file
+    fwrite(out, file=paste0(RdataPath, "MeasurePrGear_", lookup$Measure[i], "_", Year, ".csv"))
+
+    #Aggregate data on gear group level
+    out_group <- sub[, c(NoVessels=uniqueN(VE_REF), Effort_hrs=sum(INTV/60), lapply(.SD, sum)),
+               by=.(GearGroup=GearGroup),
+               .SDcols=grepl("LE_KG|LE_EURO", names(sub))]
+
+    #Add Scenario name and year to data table
+    out_group <- data.table(Scenario=lookup$Measure[i], Year=Year, out_group)
+    #Write to csv file
+    fwrite(out_group, file=paste0(RdataPath, "MeasurePrGearGroup_", lookup$Measure[i], "_", Year, ".csv"))
+    }
   }
-  
-  # Get relevant gears - remember to define them first
-  if(!is.na(lookup$Gears[i])){
-    sub <- sub[LE_GEAR %in% get(lookup$Gears[i])]
-  }
-  
-  # Get relevant Metiers - remember to define them first  
-  if(!is.na(lookup$Metiers[i])){
-    sub <- sub[LE_MET %in% get(lookup$Metiers[i])]
-  }
-  
-  #Remove species columns with sum zero
-  zeroes <- names(colSums(Filter(is.numeric, sub))
-                  [colSums(Filter(is.numeric, sub))==0])
-  try(sub[,(zeroes):=NULL], silent = T)
-  
-  #Aggregate data on gear level
-  out <- sub[, c(NoVessels=uniqueN(VE_REF), Effort_hrs=sum(INTV/60), lapply(.SD, sum)),
-             by=.(Gear=LE_GEAR),
-             .SDcols=grepl("LE_KG|LE_EURO", names(sub))]
-  
-  #Add Scenario name and year to data table
-  out <- data.table(Scenario=lookup$Measure[i], Year=Year, out)
-  #Write to csv file
-  fwrite(out, file=paste0(RdataPath, "MeasurePrGear_", lookup$Measure[i], "_", Year, ".csv"))
-  
-  #Aggregate data on gear group level
-  out_group <- sub[, c(NoVessels=uniqueN(VE_REF), Effort_hrs=sum(INTV/60), lapply(.SD, sum)),
-             by=.(GearGroup=GearGroup),
-             .SDcols=grepl("LE_KG|LE_EURO", names(sub))]
-  
-  #Add Scenario name and year to data table
-  out_group <- data.table(Scenario=lookup$Measure[i], Year=Year, out_group)
-  #Write to csv file
-  fwrite(out_group, file=paste0(RdataPath, "MeasurePrGearGroup_", lookup$Measure[i], "_", Year, ".csv"))
-  
-}}
+}
 
 # Get data from all measures / years and gear into one data table.
 m_list1 <- list.files(path = RdataPath, pattern= "MeasurePrGear_", full.names = T)
