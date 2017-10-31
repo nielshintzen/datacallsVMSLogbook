@@ -65,7 +65,7 @@ euro <- artsliste[euro]
 euro[,c("FAO_kode", "variable"):=NULL]
 setorder(euro, Scenario, GearGroup, -2016)
 euro[is.na(euro)] = 0
-setcolorder(kg, c("Scenario", "GearGroup", "DK_art", "GB_art", 2012:2016))
+setcolorder(euro, c("Scenario", "GearGroup", "DK_art", "GB_art", 2012:2016))
 
 ## Effort in hour in each area, based on year, area and geargroup ##
 ef <- mx[,sum(Effort_hrs),by=c("Scenario", "GearGroup", "Year")]
