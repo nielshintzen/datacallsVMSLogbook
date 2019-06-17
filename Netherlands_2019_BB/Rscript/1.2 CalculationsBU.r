@@ -23,10 +23,9 @@ years      <- 2014:2017
 load(file=paste(inPath,'tacsatp.yrs.RData',sep=''))
 load(file=paste(inPath,'eflalo.yrs.RData',sep=''))
 load(file=paste(shapePath,'BBtot.RData',sep=''))
-load(file=paste(shapePath,'ICESR.RData',sep=''))
 load(file=paste(shapePath,"Rect16.RData",sep=''))
-load(file=paste(shapePath,"icesstatsq_ext.rda",sep=""))
 load(file=paste(shapePath,"grdOverlabBR.RData",sep=""))
+load(file=paste(shapePath,"grd.RData",sep=""))
 
 #-------------------------------------------------------
 #- Trim eflalo to unique trips records dataset
@@ -38,7 +37,6 @@ eflalo.trp2           <- (aggregate(list(eflalo.yrs$LE_MSZ,eflalo.yrs$LE_WIDTH,e
                                     list(eflalo.yrs$VE_REF,eflalo.yrs$FT_REF,eflalo.yrs$FT_DDATIM,eflalo.yrs$FT_LDATIM),max,na.rm=T))
 colnames(eflalo.trp2) <- c("VE_REF","FT_REF","FT_DDATIM","FT_LDATIM","LE_MSZ","LE_WIDTH","VE_DAS")
 eflalo.trp            <- merge(eflalo.trp1,eflalo.trp2)
-eflalo.trp            <- merge(eflalo.trp,MSZ,by="VE_REF")
 
 #-------------------------------------------------------
 #- Define gillnet trips categories based on MSZ and catch composition
@@ -64,7 +62,7 @@ eflalo.trp$CNT        <-1
 #- Add gear width (=gillnet length) to dataset and fill NA's with assumptions; eg. CAT=2: 10-25 km gillnets
 #-------------------------------------------------------
 eflalo.trp[eflalo.trp$LE_WIDTH==-Inf,]$LE_WIDTH<-NA
-if(eflalo.trp$LE_WIDTH > 25000) warnings("This means you have a gear length larger than 25km, not allowed for Dutch vessels, but perhaps for your country OK")
+if(sum(eflalo.trp$LE_WIDTH > 25000 & !is.na(eflalo.trp$LE_WIDTH))>0) warnings("This means you have a gear length larger than 25km, not allowed for Dutch vessels, but perhaps for your country OK")
 
 #gear width from logbooks
 eflalo.trp$Min.net<-eflalo.trp$Max.net<-eflalo.trp$LE_WIDTH
@@ -189,17 +187,6 @@ TEcomb       <-rbindEflalo(tacsatNMeflalo[,col2keep],tacsatEflalo[,col2keep])
 TEcomb$orign <-c(rep('eflalo',nrow(tacsatNMeflalo)),rep('tacsat',nrow(tacsatEflalo)))
 #Add ices rectangle
 TEcomb$RECT  <-ICESrectangle(TEcomb)
-idx          <-which(icesstatsq[['label']] %in%ICESrect)
-areaRef      <-lonLat2SpatialPolygons(lst=lapply(as.list(idx),
-                                                function(x){data.frame(SI_LONG=icesstatsq$coordinates[[x]]$x,SI_LATI=icesstatsq$coordinates[[x]]$y)}))
-bbox         <- bbox(areaRef)
-spatBound    <- list(xrange = c(floor(range(bbox["x",])[1]),ceiling(range(bbox["x",])[2])),
-                     yrange = c(floor(range(bbox["y",])[1]),ceiling(range(bbox["y",])[2])))
-
-#- Define grid cell area
-resx             <- 0.25
-resy             <- 0.125
-grd              <- createGrid(spatBound$x,spatBound$y,resx,resy,type="SpatialGridDataFrame",exactBorder=T)
 subTEcomb        <- TEcomb[TEcomb$RECT%in%ICESrect,]
 coords           <- SpatialPointsDataFrame(cbind(x=an(ac(subTEcomb$SI_LONG)),y=an(ac(subTEcomb$SI_LATI))),data=subTEcomb)
 idx              <- over(as(coords,"SpatialPoints"),as(grd,"SpatialGrid"))
@@ -219,10 +206,6 @@ names(result) <- c('orign','CAT','gridID','SI_YEAR','SI_MONTH','LE_KG_DAS','LE_K
                    'LE_EURO_BSS','LE_EURO_MUL','LE_EURO_SOL','LE_EURO_COD','LE_EURO_TOT')
 grdcoor       <-as.data.frame(coordinates(grd))
 grdcoor$gridID<-rownames(grdcoor)
-# load(file=paste(shapePath,'ShapeIcesRec.Rdata',sep=''))
-# plot(Sices);axis(1);axis(2)
-# text(grdcoor$s1,grdcoor$s2,grdcoor$gridID,cex=0.7)
-# range(result$gridID)
 
 #-------------------------------------------------------------------------------
 #- Produce  table containing number of vessels, effort, and catch for total, subareas, all years and per year.
