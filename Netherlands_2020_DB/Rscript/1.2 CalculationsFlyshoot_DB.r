@@ -181,7 +181,7 @@ for (year in years)
 #-------------------------------------------------------------------------------
 #- Save ecological impact result
 #-------------------------------------------------------------------------------
-save(grd,file=paste(outPath,'Ecolresult_grid_',Country,'.RData',sep=''))
+save(grd,file=paste(outPath,'/Ecolresult_grid_',Country,'.RData',sep=''))
 
 
 
