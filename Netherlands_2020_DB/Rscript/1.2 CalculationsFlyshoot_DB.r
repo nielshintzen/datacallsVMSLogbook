@@ -72,7 +72,6 @@ tacsatp.yrs           <- tacsatp.yrs[!is.na(tacsatp.yrs$INTV),]
 tacsatp.yrs           <- tacsatp.yrs[tacsatp.yrs$INTV>0,]
 tacsatp.yrs$INTV[tacsatp.yrs$INTV >230] <- 115
 
-tacsatp.yrs               <- tacsatp.yrs[!is.na(tacsatp.yrs$INTV),]
 #- Split eflalo up in two sets, one set that cannot be merged to tacsat and one which matches
 eflaloNM              <- subset(eflalo.yrs,!FT_REF %in% unique(tacsatp.yrs$FT_REF))
 eflaloM               <- subset(eflalo.yrs, FT_REF %in% unique(tacsatp.yrs$FT_REF))
