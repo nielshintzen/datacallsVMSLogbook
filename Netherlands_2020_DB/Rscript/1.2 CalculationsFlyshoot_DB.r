@@ -89,6 +89,10 @@ print(colSums(tacsatEflalo[c(grep("KG",colnames(tacsatEflalo)))],na.rm=T))
 #- Read in polygon data of the proposed areas'
 polnames<-c("DB_withoutUK.RData","DB_withoutUK_ices.RData","DB_mngtareas_withoutUK.RData")
 
+#- Categorize vessel lengths
+tacsatEflalo$LENCAT    <- cut(tacsatEflalo$VE_LEN,breaks=c(0,12,18,24,100),labels=c("0-12","12-18","18-24",">24"))
+eflaloNM$LENCAT        <- cut(eflaloNM$VE_LEN,breaks=c(0,12,18,24,100),labels=c("0-12","12-18","18-24",">24"))
+
 for (i in c(1:length(polnames))) {
   load(file.path(shapePath,paste(polnames[i],sep="")))  #
   #- determine which tacsateflalo records are located in the area and select these
@@ -103,6 +107,7 @@ for (i in c(1:length(polnames))) {
                                                       LENCAT=tacsatEflalo$LENCAT,
                                                       Area=tacsatEflalo$Area
                                                  ),sum,na.rm=T)
+  table                             <- merge(table,aggregate(tacsatEflalo["VE_REF"],list(YEAR=an(format(tacsatEflalo$SI_DATIM, format = "%Y")),GEAR=tacsatEflalo$LE_GEAR,LENCAT=tacsatEflalo$LENCAT,Area=tacsatEflalo$Area),function(x) length(unique(x))))
   table$Area                      <- paste(polnames[i],table$Area,sep="-")
   if (i==1) table.Efl             <- table
   if (i>1) table.Efl              <- rbind(table.Efl,table)
@@ -112,10 +117,15 @@ for (i in c(1:length(polnames))) {
 table                             <- aggregate(eflaloNM[c(grep("KG",colnames(eflaloNM)),grep("EURO",colnames(eflaloNM)))],
                                                list(Area=eflaloNM$LE_RECT,
                                                     YEAR=year(eflaloNM$FT_DDATIM),
-                                                    GEAR=eflaloNM$LE_GEAR#,
+                                                    GEAR=eflaloNM$LE_GEAR,
                                                     LENCAT=eflaloNM$LENCAT
                                                ),sum,na.rm=T)
-
+table                             <- merge(table, aggregate(eflaloNM["VE_REF"],
+                                                            list(Area=eflaloNM$LE_RECT,
+                                                                 YEAR=year(eflaloNM$FT_DDATIM),
+                                                                 GEAR=eflaloNM$LE_GEAR,
+                                                                 LENCAT=eflaloNM$LENCAT
+                                                            ),function(x) length(unique(x))))
 #- Combine table of eflaloNM with tacsat-table
 final.table                       <- rbind(table.Efl,table[colnames(table.Efl)])
 save(final.table,file=paste(outPath,"/final.table.",Country,".Rdata",sep=""))
