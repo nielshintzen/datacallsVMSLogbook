@@ -100,7 +100,7 @@ for (i in c(1:length(polnames))) {
   table                             <- aggregate(tacsatEflalo[c(grep("KG",colnames(tacsatEflalo)),grep("EURO",colnames(tacsatEflalo)))],
                                                  list(YEAR=an(format(tacsatEflalo$SI_DATIM, format = "%Y")),
                                                       GEAR=tacsatEflalo$LE_GEAR,
-                                                      #        LENCAT=tacsatEflalo$LENCAT,
+                                                      LENCAT=tacsatEflalo$LENCAT,
                                                       Area=tacsatEflalo$Area
                                                  ),sum,na.rm=T)
   table$Area                      <- paste(polnames[i],table$Area,sep="-")
@@ -113,7 +113,7 @@ table                             <- aggregate(eflaloNM[c(grep("KG",colnames(efl
                                                list(Area=eflaloNM$LE_RECT,
                                                     YEAR=year(eflaloNM$FT_DDATIM),
                                                     GEAR=eflaloNM$LE_GEAR#,
-                                                    #    LENCAT=eflaloNM.Comb$LENCAT
+                                                    LENCAT=eflaloNM$LENCAT
                                                ),sum,na.rm=T)
 
 #- Combine table of eflaloNM with tacsat-table
