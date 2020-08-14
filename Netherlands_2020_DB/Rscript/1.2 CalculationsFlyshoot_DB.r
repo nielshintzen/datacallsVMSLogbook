@@ -15,7 +15,7 @@ TacsateflaloPath  <- "S:/Onderzoek/Projecten VMS/BASEFILES/"                    
 Country    <- 'NLD'                                                      #adjust accordingly!
 ICESrect   <- c('37F2','38F2','38F3','39F3','39F4','40F3','40F4')        #Selection of study area
 years      <- 2013:2019 
-
+includeNBves <- T                                                        # change if you don't want to include the nb of vessels
 #-------------------------------------------------------------------------------
 #- 1a) load tacsat and eflalo files combined from the time period (output script 1.1)
 #------------------------------------------------------------------------------- 
@@ -107,7 +107,8 @@ for (i in c(1:length(polnames))) {
                                                       LENCAT=tacsatEflalo$LENCAT,
                                                       Area=tacsatEflalo$Area
                                                  ),sum,na.rm=T)
-  table                             <- merge(table,aggregate(tacsatEflalo["VE_REF"],list(YEAR=an(format(tacsatEflalo$SI_DATIM, format = "%Y")),GEAR=tacsatEflalo$LE_GEAR,LENCAT=tacsatEflalo$LENCAT,Area=tacsatEflalo$Area),function(x) length(unique(x))))
+ if (includeNBves) 
+   table                             <- merge(table,aggregate(tacsatEflalo["VE_REF"],list(YEAR=an(format(tacsatEflalo$SI_DATIM, format = "%Y")),GEAR=tacsatEflalo$LE_GEAR,LENCAT=tacsatEflalo$LENCAT,Area=tacsatEflalo$Area),function(x) length(unique(x))))
   table$Area                      <- paste(polnames[i],table$Area,sep="-")
   if (i==1) table.Efl             <- table
   if (i>1) table.Efl              <- rbind(table.Efl,table)
@@ -120,7 +121,8 @@ table                             <- aggregate(eflaloNM[c(grep("KG",colnames(efl
                                                     GEAR=eflaloNM$LE_GEAR,
                                                     LENCAT=eflaloNM$LENCAT
                                                ),sum,na.rm=T)
-table                             <- merge(table, aggregate(eflaloNM["VE_REF"],
+if (includeNBves) 
+  table                             <- merge(table, aggregate(eflaloNM["VE_REF"],
                                                             list(Area=eflaloNM$LE_RECT,
                                                                  YEAR=year(eflaloNM$FT_DDATIM),
                                                                  GEAR=eflaloNM$LE_GEAR,
