@@ -76,6 +76,9 @@ tacsatp.yrs$INTV[tacsatp.yrs$INTV >230] <- 115
 eflaloNM              <- subset(eflalo.yrs,!FT_REF %in% unique(tacsatp.yrs$FT_REF))
 eflaloM               <- subset(eflalo.yrs, FT_REF %in% unique(tacsatp.yrs$FT_REF))
 
+#select only fishing pings
+tacsatp.yrs <- tacsatp.yrs[tacsatp.yrs$SI_STATE == 'f',]
+
 #- Split effort and total landing among pings
 tacsatEflalo          <- (splitAmongPings(tacsat=subset(tacsatp.yrs,FT_REF %in% unique(eflaloM$FT_REF)),eflalo=subset(eflaloM),variable="all",level="day",by="INTV",conserve=T))
 cat("total value in eflalo\n")
