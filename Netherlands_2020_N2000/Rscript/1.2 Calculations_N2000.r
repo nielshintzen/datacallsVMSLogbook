@@ -19,9 +19,10 @@ includeNBves  <- T                                                              
 #-------------------------------------------------------------------------------
 #- 1a) load tacsat and eflalo files combined from the time period (output script 1.1)
 #------------------------------------------------------------------------------- 
-load(file=file.path(inPath,'tacsatp.yrs.RData',sep=''))
-load(file=file.path(inPath,'eflalo.yrs.RData',sep=''))
-load(file=file.path(shapePath,"shapes.RData",sep=""))
+load(file=file.path(inPath,'tacsatp.yrs.RData'))
+load(file=file.path(inPath,'eflalo.yrs.RData'))
+load(file=file.path(shapePath,"shapes.RData"))
+load(file=file.path(shapePath,"grd.RData"))
 
 #-------------------------------------------------------------------------------
 #- 1b) Define activitity Based on your prefered method "f" is fishing, "s" is steaming
@@ -89,114 +90,98 @@ print(colSums(tacsatEflalo[c(grep("KG",colnames(tacsatEflalo)))],na.rm=T))
 #-------------------------------------------------------------------------------
 #- 2b) Produce  table containing number of vessels, effort, value and catch, by subareas per year.
 #-------------------------------------------------------------------------------
-#- Read in polygon data of the proposed areas'
-polnames               <-c("DB_withoutUK.RData","DB_withoutUK_ices.RData","DB_mngtareas_withoutUK.RData")
+grid16                 <- createGrid(xrange = c(floor(min(bbox(grd)["x",])),ceiling(max(bbox(grd)["x",]))),
+                                     yrange = c(floor(min(bbox(grd)["y",])),ceiling(max(bbox(grd)["y",]))),
+                                     resx   = 1/4,
+                                     resy   = 1/8,
+                                     exactBorder=T,type="SpatialGridDataFrame")
+grid16@data$LE_RECT    <- ICESrectangle(data.frame(SI_LONG=coordinates(grid16)[,1],SI_LATI=coordinates(grid16)[,2]))
+grid16@data$SI_LONG    <- coordinates(grid16)[,1]
+grid16@data$SI_LATI    <- coordinates(grid16)[,2]
+grid16@data$ID         <- 1:nrow(grid16@data)
+grid16                 <- as(grid16,"SpatialPolygonsDataFrame")
+proj4string(grid16)    <- CRS("+proj=longlat +datum=WGS84 +no_defs")
 
 #- Categorize vessel lengths
 tacsatEflalo$LENCAT    <- cut(tacsatEflalo$VE_LEN,breaks=c(0,12,18,24,100),labels=c("0-12","12-18","18-24",">24"))
 eflaloNM$LENCAT        <- cut(eflaloNM$VE_LEN,breaks=c(0,12,18,24,100),labels=c("0-12","12-18","18-24",">24"))
+tacsatEflalo$VE_KW     <- eflaloM$VE_KW[match(tacsatEflalo$FT_REF,eflaloM$FT_REF)]
+tacsatEflalo$KWCAT     <- cut(tacsatEflalo$VE_KW,breaks=c(0,225,10000),labels=c("0-300",">300"))
+eflaloNM$KWCAT         <- cut(eflaloNM$VE_KW,breaks=c(0,225,10000),labels=c("0-300",">300"))
 
-for (i in c(1:length(polnames))) {
-  load(file.path(shapePath,paste(polnames[i],sep="")))  #
-  #- determine which tacsateflalo records are located in the area and select these
-  pings  <- SpatialPoints(tacsatEflalo[c('SI_LONG','SI_LATI')],proj4string=CRS("+proj=longlat +ellps=WGS84"))
-  area   <- over(pings,shape)$Name
-  
-  tacsatEflalo$Area            <- area
-  
-  table                             <- aggregate(tacsatEflalo[c(grep("KG",colnames(tacsatEflalo)),grep("EURO",colnames(tacsatEflalo)))],
-                                                 list(YEAR=an(format(tacsatEflalo$SI_DATIM, format = "%Y")),
-                                                      GEAR=tacsatEflalo$LE_GEAR,
-                                                      LENCAT=tacsatEflalo$LENCAT,
-                                                      Area=tacsatEflalo$Area
-                                                 ),sum,na.rm=T)
- if (includeNBves) 
-   table                             <- merge(table,aggregate(tacsatEflalo["VE_REF"],list(YEAR=an(format(tacsatEflalo$SI_DATIM, format = "%Y")),GEAR=tacsatEflalo$LE_GEAR,LENCAT=tacsatEflalo$LENCAT,Area=tacsatEflalo$Area),function(x) length(unique(x))))
-  table$Area                      <- paste(polnames[i],table$Area,sep="-")
-  if (i==1) table.Efl             <- table
-  if (i>1) table.Efl              <- rbind(table.Efl,table)
-}
-#- Generate table of eflaloNM effort
+#- determine which tacsateflalo records are located in the area and select these
+pings   <- SpatialPoints(tacsatEflalo[c('SI_LONG','SI_LATI')],proj4string=CRS("+proj=longlat +datum=WGS84 +no_defs"))
+inArea  <- as.character(shapes@data$Gebied)[over(pings,as(shapes,"SpatialPolygons"))]
+inGrid9 <- as.character(grd@data$sub_code)[over(pings,as(grd,"SpatialPolygons"))]
+inGrid16<- as.character(grid16@data$ID)[over(pings,as(grid16,"SpatialPolygons"))]
 
-table                             <- aggregate(eflaloNM[c(grep("KG",colnames(eflaloNM)),grep("EURO",colnames(eflaloNM)))],
-                                               list(Area=eflaloNM$LE_RECT,
-                                                    YEAR=year(eflaloNM$FT_DDATIM),
-                                                    GEAR=eflaloNM$LE_GEAR,
-                                                    LENCAT=eflaloNM$LENCAT
+#- Perform aggregation for Natura 2000 area
+tacsatEflalo$Area                 <- inArea
+tableN2000                        <- aggregate(tacsatEflalo[,c("LE_KG_TOT","LE_EURO_TOT","LE_KG_DAS","INTV")],
+                                               list(YEAR=an(format(tacsatEflalo$SI_DATIM, format = "%Y")),
+                                                    MONTH=an(format(tacsatEflalo$SI_DATIM, format = "%m")),
+                                                    GEAR=tacsatEflalo$LE_GEAR,
+                                                    LENCAT=tacsatEflalo$LENCAT,
+                                                    KWCAT=tacsatEflalo$KWCAT,
+                                                    Area=tacsatEflalo$Area
                                                ),sum,na.rm=T)
 if (includeNBves) 
-  table                             <- merge(table, aggregate(eflaloNM["VE_REF"],
-                                                            list(Area=eflaloNM$LE_RECT,
-                                                                 YEAR=year(eflaloNM$FT_DDATIM),
-                                                                 GEAR=eflaloNM$LE_GEAR,
-                                                                 LENCAT=eflaloNM$LENCAT
-                                                            ),function(x) length(unique(x))))
+ table.N2000                      <- merge(tableN2000,aggregate(tacsatEflalo[,"VE_REF"],list(YEAR=an(format(tacsatEflalo$SI_DATIM, format = "%Y")),MONTH=an(format(tacsatEflalo$SI_DATIM, format = "%m")),GEAR=tacsatEflalo$LE_GEAR,LENCAT=tacsatEflalo$LENCAT,KWCAT=tacsatEflalo$KWCAT,Area=tacsatEflalo$Area),function(x) length(unique(x))))
+
+#- Perform aggregation for 1/9th grid
+tacsatEflalo$Area                 <- inGrid9
+tableGrid9                        <- aggregate(tacsatEflalo[,c("LE_KG_TOT","LE_EURO_TOT","LE_KG_DAS","INTV")],
+                                               list(YEAR=an(format(tacsatEflalo$SI_DATIM, format = "%Y")),
+                                                    MONTH=an(format(tacsatEflalo$SI_DATIM, format = "%m")),
+                                                    GEAR=tacsatEflalo$LE_GEAR,
+                                                    LENCAT=tacsatEflalo$LENCAT,
+                                                    KWCAT=tacsatEflalo$KWCAT,
+                                                    Area=tacsatEflalo$Area
+                                               ),sum,na.rm=T)
+if (includeNBves)
+ table.Grid9                      <- merge(tableGrid9,aggregate(tacsatEflalo[,"VE_REF"],list(YEAR=an(format(tacsatEflalo$SI_DATIM, format = "%Y")),MONTH=an(format(tacsatEflalo$SI_DATIM, format = "%m")),GEAR=tacsatEflalo$LE_GEAR,LENCAT=tacsatEflalo$LENCAT,KWCAT=tacsatEflalo$KWCAT,Area=tacsatEflalo$Area),function(x) length(unique(x))))
+
+#- Perform aggregation for 1/16th grid
+tacsatEflalo$Area                 <- inGrid16
+tableGrid16                       <- aggregate(tacsatEflalo[,c("LE_KG_TOT","LE_EURO_TOT","LE_KG_DAS","INTV")],
+                                               list(YEAR=an(format(tacsatEflalo$SI_DATIM, format = "%Y")),
+                                                    MONTH=an(format(tacsatEflalo$SI_DATIM, format = "%m")),
+                                                    GEAR=tacsatEflalo$LE_GEAR,
+                                                    LENCAT=tacsatEflalo$LENCAT,
+                                                    KWCAT=tacsatEflalo$KWCAT,
+                                                    Area=tacsatEflalo$Area
+                                               ),sum,na.rm=T)
+if (includeNBves)
+ table.Grid16                     <- merge(tableGrid16,aggregate(tacsatEflalo[,"VE_REF"],list(YEAR=an(format(tacsatEflalo$SI_DATIM, format = "%Y")),MONTH=an(format(tacsatEflalo$SI_DATIM, format = "%m")),GEAR=tacsatEflalo$LE_GEAR,LENCAT=tacsatEflalo$LENCAT,KWCAT=tacsatEflalo$KWCAT,Area=tacsatEflalo$Area),function(x) length(unique(x))))
+
+
+
+
+#- Generate table of eflaloNM effort
+
+table.NM                          <- aggregate(eflaloNM[c(grep("KG",colnames(eflaloNM)),grep("EURO",colnames(eflaloNM)))],
+                                               list(YEAR=year(eflaloNM$FT_DDATIM),
+                                                    MONTH=month(eflaloNM$FT_DDATIM),
+                                                    GEAR=eflaloNM$LE_GEAR,
+                                                    LENCAT=eflaloNM$LENCAT,
+                                                    KWCAT=eflaloNM$KWCAT,
+                                                    Area=eflaloNM$LE_RECT
+                                               ),sum,na.rm=T)
+if (includeNBves) 
+  table.NM                        <- merge(table, aggregate(eflaloNM["VE_REF"],
+                                              list(YEAR=year(eflaloNM$FT_DDATIM),
+                                                   MONTH=month(eflaloNM$FT_DDATIM),
+                                                   GEAR=eflaloNM$LE_GEAR,
+                                                   LENCAT=eflaloNM$LENCAT,
+                                                   KWCAT=eflaloNM$KWCAT,
+                                                   Area=eflaloNM$LE_RECT
+                                              ),function(x) length(unique(x))))
 #- Combine table of eflaloNM with tacsat-table
 final.table                       <- rbind(table.Efl,table[colnames(table.Efl)])
 save(final.table,file=paste(outPath,"/final.table.",Country,".Rdata",sep=""))
 
 summary(final.table)
 table(final.table$Area)
-#-------------------------------------------------------------------------------
-#- 3) Calculate swept area
-#------------------------------------------------------------------------------- 
-
-#select only fishing pings
-tacsatp.yrs <- tacsatp.yrs[tacsatp.yrs$SI_STATE == 'f',]
-
-#add benthis gearWidhtParams for mertiers  in dataset (LE_MET) (might differ from parameter values used here!)
-tacsatp.yrs$LE_MET <- substr(tacsatp.yrs$LE_MET,1,3)
-
-gearWidthParams <- rbind(c("SDN",a=1948.8347,b=0.2363, unit="VE_ABS",  av=6536.64, propSubSurf=0.05),
-                         c("SSC",a=4461.2700,b=0.1176, unit="VE_ABS",  av=6454.21, propSubSurf=0.14))
-gearWidthParams <- data.frame(gearWidthParams,stringsAsFactors=FALSE)
-colnames(gearWidthParams)[1]  <- "LE_MET"
-gearWidthParams$a             <- as.numeric(gearWidthParams$a)
-gearWidthParams$b             <- as.numeric(gearWidthParams$b)
-gearWidthParams$av            <- as.numeric(gearWidthParams$av)
-gearWidthParams$propSubSurf   <- as.numeric(gearWidthParams$propSubSurf)
-
-tacsatp.yrs <- merge(tacsatp.yrs,gearWidthParams,by="LE_MET",all.x=TRUE)
-
-#calculate swept area surf and subsurf
-tacsatp.yrs$LE_WIDTH   <- (pi*(((tacsatp.yrs$a * tacsatp.yrs$VE_LEN ^ tacsatp.yrs$b)/1000)/(2*pi))^2)
-tacsatp.yrs$LE_SURF    <- (tacsatp.yrs$LE_WIDTH * tacsatp.yrs$INTV/60/1.912500) * 1.5
-tacsatp.yrs$LE_SUBSURF <- tacsatp.yrs$LE_SURF * tacsatp.yrs$propSubSurf
-
-#define year
-tacsatp.yrs$SI_YEAR <- format(tacsatp.yrs$SI_DATIM ,"%Y")
-
-#-------------------------------------------------------------------------------
-#- sum INTV, SURF and SUBSURF values per gridcell and year and store result in grd
-#-------------------------------------------------------------------------------
-coordsDat   <- coordinates(tacsatp.yrs[,c("SI_LONG","SI_LATI")]) 
-spCoordsDat <- SpatialPoints(coordsDat)
-
-tacsatp.yrs$idx <- over(spCoordsDat, grd)[,1]
-tacsatp.yrs     <- tacsatp.yrs[!is.na(tacsatp.yrs$idx),]
-
-Aggd            <- aggregate(tacsatp.yrs$LE_SURF,by=list(tacsatp.yrs$SI_YEAR, tacsatp.yrs$idx),FUN=sum)
-names(Aggd)     <- c('SI_YEAR','idx','LE_SURF')
-Aggd$LE_SUBSURF <- aggregate(tacsatp.yrs$LE_SUBSURF,by=list(tacsatp.yrs$SI_YEAR, tacsatp.yrs$idx),FUN=sum)[,3]
-Aggd$INTV       <- aggregate(tacsatp.yrs$INTV,by=list(tacsatp.yrs$SI_YEAR, tacsatp.yrs$idx),FUN=sum)[,3]
-
-#store result in spatialgriddatafame
-for (year in years)
-{
-  for(par in c('LE_SURF','LE_SUBSURF','INTV'))
-  {
-    grd@data$NEW <- NA
-    temp <- Aggd[Aggd$SI_YEAR == year,]
-    grd@data$NEW[match(temp$idx,grd@data$cellID)]  <- temp[,par]
-    names(grd@data)[which(names(grd@data)=='NEW')] <- paste(year,par,sep='_')
-  }
-}
-
-#-------------------------------------------------------------------------------
-#- Save ecological impact result
-#-------------------------------------------------------------------------------
-save(grd,file=paste(outPath,'/Ecolresult_grid_',Country,'.RData',sep=''))
-
 
 
 
