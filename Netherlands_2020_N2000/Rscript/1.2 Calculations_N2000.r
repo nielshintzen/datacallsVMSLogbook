@@ -154,12 +154,8 @@ tableGrid16                       <- aggregate(tacsatEflalo[,c("LE_KG_TOT","LE_E
 if (includeNBves)
  table.Grid16                     <- merge(tableGrid16,aggregate(tacsatEflalo[,"VE_REF"],list(YEAR=an(format(tacsatEflalo$SI_DATIM, format = "%Y")),MONTH=an(format(tacsatEflalo$SI_DATIM, format = "%m")),GEAR=tacsatEflalo$LE_GEAR,LENCAT=tacsatEflalo$LENCAT,KWCAT=tacsatEflalo$KWCAT,Area=tacsatEflalo$Area),function(x) length(unique(x))))
 
-
-
-
 #- Generate table of eflaloNM effort
-
-table.NM                          <- aggregate(eflaloNM[c(grep("KG",colnames(eflaloNM)),grep("EURO",colnames(eflaloNM)))],
+table.NM                          <- aggregate(eflaloNM[,c("LE_KG_TOT","LE_EURO_TOT","LE_KG_DAS","INTV")],
                                                list(YEAR=year(eflaloNM$FT_DDATIM),
                                                     MONTH=month(eflaloNM$FT_DDATIM),
                                                     GEAR=eflaloNM$LE_GEAR,
@@ -168,7 +164,7 @@ table.NM                          <- aggregate(eflaloNM[c(grep("KG",colnames(efl
                                                     Area=eflaloNM$LE_RECT
                                                ),sum,na.rm=T)
 if (includeNBves) 
-  table.NM                        <- merge(table, aggregate(eflaloNM["VE_REF"],
+  table.NM                        <- merge(table.NM, aggregate(eflaloNM[,"VE_REF"],
                                               list(YEAR=year(eflaloNM$FT_DDATIM),
                                                    MONTH=month(eflaloNM$FT_DDATIM),
                                                    GEAR=eflaloNM$LE_GEAR,
@@ -176,8 +172,9 @@ if (includeNBves)
                                                    KWCAT=eflaloNM$KWCAT,
                                                    Area=eflaloNM$LE_RECT
                                               ),function(x) length(unique(x))))
+
 #- Combine table of eflaloNM with tacsat-table
-final.table                       <- rbind(table.Efl,table[colnames(table.Efl)])
+final.table                       <- rbind(table.N2000,table.Grid9,table.Grid16,table.NM)
 save(final.table,file=paste(outPath,"/final.table.",Country,".Rdata",sep=""))
 
 summary(final.table)
